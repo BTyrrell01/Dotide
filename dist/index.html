@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Split</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="top-row">
+            <h3>DOT IDE</h3>
+        </div>
+
+        <div class="bottom-row">
+            <div class="left-pane">
+                <script type="module" src="../editor.js"></script>
+                <script type="module">
+                    import { createEditorState, createEditorView } from "../editor.js";
+                    const el = document.querySelector(".left-pane");
+                    const initialState = createEditorState("digraph {\n\ta -> b\n}");
+                    const view = createEditorView(initialState, el);
+                </script>
+            </div>
+            <div class="right-pane">
+                <script type="module" src="../main.js"></script>
+                <script type="module">
+                    import { init } from "../main.js";
+                    init();
+                </script>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
