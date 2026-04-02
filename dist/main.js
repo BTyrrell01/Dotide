@@ -383,8 +383,15 @@ function renderGraph(dot) {
 
   try {
     const newSvg = vizInstance.renderSVGElement(dot);
+    
+    // Responsive scaling fix
+    newSvg.removeAttribute("width");
+    newSvg.removeAttribute("height");
+    newSvg.style.maxWidth = "100%";
+    newSvg.style.maxHeight = "100%";
+    newSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-    const container = document.querySelector(".right-pane");
+    const container = document.querySelector(".graph-viewport");
 
     container.innerHTML = ""; // clear old graph
     container.appendChild(newSvg);
