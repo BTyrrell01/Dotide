@@ -62,10 +62,19 @@ function main() {
     // The debounce can swallow the last few keystrokes before the tab closes.
     window.addEventListener("beforeunload", () => saveDocument(editor.getSource()));
 
-    createPanZoom({
+    const panZoom = createPanZoom({
         viewport: document.querySelector("#graph"),
         stage: document.querySelector("#stage"),
         controls: document.querySelector("#zoom-controls"),
+    });
+
+    document.querySelector("#reset").addEventListener("click", () => {
+        if (!confirm("Replace the current document with the default graph?")) return;
+
+        // A normal edit: onChange renders and saves it, and undo restores the
+        // previous document.
+        editor.setSource(INITIAL_DOC);
+        panZoom.reset();
     });
 
     registerExportButtons({
