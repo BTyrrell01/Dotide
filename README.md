@@ -11,6 +11,19 @@ npm run dev     # build, watch, and serve on http://localhost:10001
 npm run build   # one-off build into dist/
 ```
 
+`OUT_DIR` and `PORT` override the output directory and dev-server port, so a
+second instance can run without disturbing one already using `dist/` and 10001:
+
+```sh
+OUT_DIR=dist-check PORT=10099 npm run dev
+```
+
+This matters because `npm run build` clears its output directory first: a build
+using the default `dist/` will delete the files a running dev server is serving.
+`dist-*/` is gitignored, so any alternate output directory named that way stays
+out of the repo. `OUT_DIR` must point inside the project — the build refuses
+anything else, since it names a directory that gets recursively deleted.
+
 ## Layout
 
 | Path | |

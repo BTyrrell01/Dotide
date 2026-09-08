@@ -4,11 +4,39 @@ import path from "node:path";
 import resolve from "@rollup/plugin-node-resolve";
 import serve from "rollup-plugin-serve";
 
-const OUT_DIR = "dist";
 const STATIC_DIR = "public";
 
 // rollup sets this when invoked with --watch.
 const watching = process.env.ROLLUP_WATCH === "true";
+
+/**
+ * Build output directory and dev-server port, both overridable so a second
+ * instance can run without disturbing one already using dist/ and port 10001:
+ *
+ *     OUT_DIR=dist-check PORT=10099 npm run build
+ */
+const OUT_DIR = checkedOutDir(process.env.OUT_DIR || "dist");
+const DEV_PORT = Number(process.env.PORT) || 10001;
+
+/**
+ * The build clears its output directory, so OUT_DIR drives a recursive delete.
+ * It comes from the environment, which means a stray value like "." or "/"
+ * would wipe the working tree. Only allow directories strictly inside the
+ * project.
+ */
+function checkedOutDir(value) {
+    const root = path.resolve(".");
+    const resolved = path.resolve(value);
+
+    if (resolved === root || !resolved.startsWith(root + path.sep)) {
+        throw new Error(
+            `OUT_DIR must name a directory inside the project; got "${value}" `
+            + `which resolves to "${resolved}".`
+        );
+    }
+
+    return value;
+}
 
 /**
  * Copies everything in public/ into the build output, preserving structure.
@@ -62,6 +90,6 @@ export default {
         resolve(),
         copyStatic(),
         // Serving during a one-off build would never exit.
-        watching && serve({ contentBase: OUT_DIR, port: 10001 }),
+        watching && serve({ contentBase: OUT_DIR, port: DEV_PORT }),
     ],
 };
