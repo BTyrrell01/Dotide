@@ -2,7 +2,7 @@ import { createEditor } from "./editor.js";
 import { createRenderer } from "./renderer.js";
 import { registerExportButtons } from "./export.js";
 import { createPanZoom } from "./panzoom.js";
-import { loadDocument, saveDocument } from "./storage.js";
+import { loadDocument, saveDocument, loadEngine, saveEngine } from "./storage.js";
 
 const INITIAL_DOC = `digraph G {
 
@@ -34,6 +34,7 @@ const INITIAL_DOC = `digraph G {
 `;
 
 const DEBOUNCE_MS = 200;
+const DEFAULT_ENGINE = "dot";
 
 function main() {
     const busy = document.querySelector("#busy");
@@ -44,6 +45,13 @@ function main() {
         onBusy: (isBusy) => { busy.hidden = !isBusy; },
     });
 
+    const engineSelect = document.querySelector("#engine");
+
+    // A stored engine could name one this build no longer offers.
+    const savedEngine = loadEngine(DEFAULT_ENGINE);
+    engineSelect.value = savedEngine;
+    if (!engineSelect.value) engineSelect.value = DEFAULT_ENGINE;
+
     const doc = loadDocument(INITIAL_DOC);
     let debounce;
 
@@ -53,10 +61,15 @@ function main() {
         onChange(text) {
             clearTimeout(debounce);
             debounce = setTimeout(() => {
-                renderer.render(text);
+                renderer.render(text, engineSelect.value);
                 saveDocument(text);
             }, DEBOUNCE_MS);
         },
+    });
+
+    engineSelect.addEventListener("change", () => {
+        saveEngine(engineSelect.value);
+        renderer.render(editor.getSource(), engineSelect.value);
     });
 
     // The debounce can swallow the last few keystrokes before the tab closes.
@@ -84,7 +97,7 @@ function main() {
         getDotSource: editor.getSource,
     });
 
-    renderer.render(doc);
+    renderer.render(doc, engineSelect.value);
 }
 
 try {

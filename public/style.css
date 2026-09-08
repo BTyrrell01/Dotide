@@ -184,6 +184,20 @@ html, body {
     letter-spacing: 0.04em;
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-controls label {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.app-header select,
 .app-header button,
 .app-footer button {
     font: inherit;
@@ -194,6 +208,7 @@ html, body {
     cursor: pointer;
 }
 
+.app-header select:hover,
 .app-header button:hover,
 .app-footer button:hover:not(:disabled) { background-color: var(--surface-alt); }
 

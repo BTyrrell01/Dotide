@@ -31,15 +31,16 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
             settle();
 
             if (!data.ok) {
-                showDiagnostics([{ level: "error", message: data.message }]);
+                showDiagnostics([{ message: data.message }], true);
                 return;
             }
 
-            showDiagnostics(data.result.errors);
+            const failed = data.result.status !== "success";
+            showDiagnostics(data.result.errors, failed);
 
             // On failure, leave the previous graph up rather than blanking the
             // pane over a typo mid-edit.
-            if (data.result.status !== "success") return;
+            if (failed) return;
 
             lastSvgSource = data.result.output;
             stage.replaceChildren(toResponsiveElement(data.result.output));
@@ -48,7 +49,7 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
         worker.onerror = (event) => {
             event.preventDefault();
             settle();
-            showDiagnostics([{ level: "error", message: `Renderer failed: ${event.message}` }]);
+            showDiagnostics([{ message: `Renderer failed: ${event.message}` }], true);
         };
     }
 
@@ -67,7 +68,7 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
         onBusy(false);
     }
 
-    function render(dot) {
+    function render(dot, engine) {
         // The worker handles one message at a time, so a slow layout already in
         // progress would delay this one. Kill it: its result is stale anyway.
         if (pending) restartWorker();
@@ -79,25 +80,29 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
             timeoutTimer: setTimeout(() => {
                 restartWorker();
                 showDiagnostics([{
-                    level: "error",
                     message: `Layout timed out after ${RENDER_TIMEOUT_MS / 1000}s. `
                         + `This graph may have too many edge crossings to lay out.`,
-                }]);
+                }], true);
             }, RENDER_TIMEOUT_MS),
         };
 
-        worker.postMessage({ id, dot });
+        worker.postMessage({ id, dot, engine });
     }
 
-    function showDiagnostics(errors = []) {
+    /**
+     * `failed` reflects whether output was actually produced, which is not the
+     * same as whether messages are present: sfdp reports a missing triangulation
+     * library at error level on every successful render. Messages accompanying a
+     * usable graph are advisory, so style by outcome rather than by level.
+     */
+    function showDiagnostics(errors = [], failed = false) {
         if (errors.length === 0) {
             diagnostics.hidden = true;
             diagnostics.textContent = "";
             return;
         }
 
-        const hasError = errors.some((e) => e.level === "error");
-        diagnostics.className = `diagnostics diagnostics--${hasError ? "error" : "warning"}`;
+        diagnostics.className = `diagnostics diagnostics--${failed ? "error" : "warning"}`;
         diagnostics.textContent = errors.map((e) => e.message).join("\n");
         diagnostics.hidden = false;
     }
