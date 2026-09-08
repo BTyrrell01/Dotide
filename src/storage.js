@@ -1,23 +1,30 @@
-const KEY = "dotide:document";
+const DOCUMENT_KEY = "dotide:document";
+const ENGINE_KEY = "dotide:engine";
 
 /**
  * localStorage throws rather than returning null in some configurations
  * (Safari private browsing, storage disabled by policy), so every access is
  * guarded. Losing persistence is not worth breaking the editor over.
  */
-export function loadDocument(fallback) {
+function read(key, fallback) {
     try {
-        return localStorage.getItem(KEY) ?? fallback;
+        return localStorage.getItem(key) ?? fallback;
     } catch (err) {
-        console.warn("Could not read saved document:", err);
+        console.warn(`Could not read ${key}:`, err);
         return fallback;
     }
 }
 
-export function saveDocument(text) {
+function write(key, value) {
     try {
-        localStorage.setItem(KEY, text);
+        localStorage.setItem(key, value);
     } catch (err) {
-        console.warn("Could not save document:", err);
+        console.warn(`Could not save ${key}:`, err);
     }
 }
+
+export const loadDocument = (fallback) => read(DOCUMENT_KEY, fallback);
+export const saveDocument = (text) => write(DOCUMENT_KEY, text);
+
+export const loadEngine = (fallback) => read(ENGINE_KEY, fallback);
+export const saveEngine = (engine) => write(ENGINE_KEY, engine);

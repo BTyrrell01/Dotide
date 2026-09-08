@@ -11,7 +11,21 @@
     <div class="app">
         <header class="app-header">
             <h1>DOT IDE</h1>
-            <button type="button" id="reset">Reset to default</button>
+
+            <div class="header-controls">
+                <label for="engine">Layout</label>
+                <select id="engine">
+                    <option value="dot">dot &mdash; hierarchical</option>
+                    <option value="neato">neato &mdash; spring model</option>
+                    <option value="fdp">fdp &mdash; force-directed</option>
+                    <option value="sfdp">sfdp &mdash; force-directed, large graphs</option>
+                    <option value="circo">circo &mdash; circular</option>
+                    <option value="twopi">twopi &mdash; radial</option>
+                    <option value="osage">osage &mdash; clustered</option>
+                    <option value="patchwork">patchwork &mdash; treemap</option>
+                </select>
+                <button type="button" id="reset">Reset to default</button>
+            </div>
         </header>
 
         <main class="panes">
