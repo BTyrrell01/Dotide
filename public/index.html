@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOT IDE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>DOT IDE</h1>
+        </header>
+
+        <main class="panes">
+            <div class="pane pane--editor" id="editor"></div>
+
+            <div class="pane pane--graph">
+                <div class="graph-viewport" id="graph"></div>
+                <div class="diagnostics" id="diagnostics" hidden></div>
+            </div>
+        </main>
+
+        <footer class="app-footer" id="exports">
+            <span class="footer-label">Export</span>
+            <button type="button" data-export="svg">SVG</button>
+            <button type="button" data-export="png">PNG</button>
+            <button type="button" data-export="dot">DOT source</button>
+            <button type="button" data-export="copy">Copy SVG</button>
+            <span class="status" id="status" role="status" aria-live="polite"></span>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

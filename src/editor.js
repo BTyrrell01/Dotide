@@ -1,5 +1,5 @@
 import { EditorState } from '@codemirror/state';
-import { openSearchPanel, highlightSelectionMatches } from '@codemirror/search';
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { indentWithTab, history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { foldGutter, indentOnInput, indentUnit, bracketMatching, foldKeymap, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
@@ -11,14 +11,15 @@ import { oneDark } from "@codemirror/theme-one-dark";
 // Language
 import { dot } from "@viz-js/lang-dot";
 
-export function createEditorState(initialContents, options = {}) {
-    let extensions = [
+export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
+    const extensions = [
         lineNumbers(),
         highlightActiveLineGutter(),
         highlightSpecialChars(),
         history(),
         foldGutter(),
         drawSelection(),
+        dropCursor(),
         indentUnit.of("    "),
         EditorState.allowMultipleSelections.of(true),
         indentOnInput(),
@@ -29,19 +30,11 @@ export function createEditorState(initialContents, options = {}) {
         crosshairCursor(),
         highlightActiveLine(),
         highlightSelectionMatches(),
-        EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-                const text = update.state.doc.toString();
-
-                document.dispatchEvent(new CustomEvent("editor:update", {
-                    detail: text
-                }));
-            }
-        }),
         keymap.of([
             indentWithTab,
             ...closeBracketsKeymap,
             ...defaultKeymap,
+            ...searchKeymap,
             ...historyKeymap,
             ...foldKeymap,
             ...completionKeymap,
@@ -50,15 +43,25 @@ export function createEditorState(initialContents, options = {}) {
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     ];
 
-    if (options.oneDark)
-        extensions.push(oneDark);
+    if (onChange) {
+        extensions.push(EditorView.updateListener.of((update) => {
+            if (update.docChanged) onChange(update.state.doc.toString());
+        }));
+    }
 
-    return EditorState.create({
-        doc: initialContents,
-        extensions
-    });
+    if (oneDarkTheme) extensions.push(oneDark);
+
+    return EditorState.create({ doc, extensions });
 }
 
-export function createEditorView(state, parent) {
-    return new EditorView({ state, parent });
+export function createEditor({ parent, doc, onChange, oneDarkTheme }) {
+    const view = new EditorView({
+        state: createEditorState(doc, { onChange, oneDarkTheme }),
+        parent,
+    });
+
+    return {
+        view,
+        getSource: () => view.state.doc.toString(),
+    };
 }

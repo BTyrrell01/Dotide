@@ -1,41 +1,38 @@
-import * as Viz from "@viz-js/viz";
+import { createEditor } from "./editor.js";
+import { createRenderer } from "./renderer.js";
+import { registerExportButtons } from "./export.js";
 
-let vizInstance; // shared across functions
-let renderTimeout;
+const INITIAL_DOC = "digraph {\n    a -> b\n}\n";
+const RENDER_DEBOUNCE_MS = 200;
 
-export async function init() {
-  vizInstance = await Viz.instance();
+async function main() {
+    const renderer = await createRenderer({
+        viewport: document.querySelector("#graph"),
+        diagnostics: document.querySelector("#diagnostics"),
+    });
 
-  // Initial render
-  renderGraph("digraph {\n\ta -> b\n}");
+    let renderTimeout;
+    const editor = createEditor({
+        parent: document.querySelector("#editor"),
+        doc: INITIAL_DOC,
+        onChange(text) {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => renderer.render(text), RENDER_DEBOUNCE_MS);
+        },
+    });
 
-  document.addEventListener("editor:update", (e) => {
-    clearTimeout(renderTimeout);
-       
-    renderTimeout = setTimeout(() => {
-        renderGraph(e.detail);
-    }, 200); // adjust delay as needed 
-  });
+    registerExportButtons({
+        root: document.querySelector("#exports"),
+        status: document.querySelector("#status"),
+        getSvgSource: renderer.getSvgSource,
+        getDotSource: editor.getSource,
+    });
+
+    renderer.render(INITIAL_DOC);
 }
 
-export function renderGraph(dot) {
-  if (!vizInstance) return;
-
-  try {
-    const newSvg = vizInstance.renderSVGElement(dot);
-    
-    // Responsive scaling fix
-    newSvg.removeAttribute("width");
-    newSvg.removeAttribute("height");
-    newSvg.style.maxWidth = "100%";
-    newSvg.style.maxHeight = "100%";
-    newSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
-    const container = document.querySelector(".graph-viewport");
-
-    container.innerHTML = ""; // clear old graph
-    container.appendChild(newSvg);
-  } catch (err) {
-    console.error("Graph render error:", err);
-  }
-}
+main().catch((err) => {
+    console.error("Failed to start:", err);
+    document.querySelector("#diagnostics").textContent = `Failed to start: ${err.message}`;
+    document.querySelector("#diagnostics").hidden = false;
+});
