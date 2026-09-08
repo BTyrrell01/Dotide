@@ -35,10 +35,24 @@ html, body {
     background-color: var(--surface);
 }
 
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-logo {
+    display: block;
+    width: 26px;
+    height: 26px;
+}
+
+/* Weight stays at the 400 the rest of the chrome uses; size carries the
+   title instead, so it reads as a heading without shouting. */
 .app-header h1 {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 400;
 }
 
 /* Editor / graph split. min-height:0 lets the panes shrink inside the flex column
