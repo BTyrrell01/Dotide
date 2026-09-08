@@ -1,41 +1,92 @@
-import { instance } from "@viz-js/viz";
+/** A layout taking longer than this is assumed to be pathological and killed. */
+const RENDER_TIMEOUT_MS = 5000;
+
+/** Renders faster than this finish before anyone notices; no need to flag them. */
+const BUSY_AFTER_MS = 300;
 
 /**
- * Wraps a Viz (Graphviz/WASM) instance and owns the graph pane.
+ * Owns the graph pane and a worker thread running Graphviz.
  *
- * Keeps the SVG source string of the last successful render around so exports
- * work from Graphviz's own output rather than re-serializing the live DOM node,
- * which has had its width/height stripped for responsive display.
+ * Layout runs off the main thread, so typing stays responsive no matter how
+ * long a graph takes. It also means a runaway layout can be aborted, which is
+ * impossible when the render blocks the main thread.
+ *
+ * Keeps the SVG source string of the last successful render for exports; the
+ * displayed element has had its width/height stripped for responsive display.
  */
-export async function createRenderer({ viewport, diagnostics }) {
-    const viz = await instance();
-
+export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
+    let worker;
+    let pending = null;
+    let nextId = 0;
     let lastSvgSource = null;
-    const listeners = new Set();
+
+    startWorker();
+
+    function startWorker() {
+        worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+
+        worker.onmessage = ({ data }) => {
+            // A superseded render can still land; ignore anything but the newest.
+            if (!pending || data.id !== pending.id) return;
+            settle();
+
+            if (!data.ok) {
+                showDiagnostics([{ level: "error", message: data.message }]);
+                return;
+            }
+
+            showDiagnostics(data.result.errors);
+
+            // On failure, leave the previous graph up rather than blanking the
+            // pane over a typo mid-edit.
+            if (data.result.status !== "success") return;
+
+            lastSvgSource = data.result.output;
+            stage.replaceChildren(toResponsiveElement(data.result.output));
+        };
+
+        worker.onerror = (event) => {
+            event.preventDefault();
+            settle();
+            showDiagnostics([{ level: "error", message: `Renderer failed: ${event.message}` }]);
+        };
+    }
+
+    function restartWorker() {
+        worker.terminate();
+        settle();
+        startWorker();
+    }
+
+    /** Clears the timers for the in-flight render and drops the busy state. */
+    function settle() {
+        if (!pending) return;
+        clearTimeout(pending.timeoutTimer);
+        clearTimeout(pending.busyTimer);
+        pending = null;
+        onBusy(false);
+    }
 
     function render(dot) {
-        let result;
+        // The worker handles one message at a time, so a slow layout already in
+        // progress would delay this one. Kill it: its result is stale anyway.
+        if (pending) restartWorker();
 
-        try {
-            // render() reports bad DOT via result.errors; only unexpected
-            // runtime failures throw.
-            result = viz.render(dot, { format: "svg" });
-        } catch (err) {
-            showDiagnostics([{ level: "error", message: String(err) }]);
-            return;
-        }
+        const id = ++nextId;
+        pending = {
+            id,
+            busyTimer: setTimeout(() => onBusy(true), BUSY_AFTER_MS),
+            timeoutTimer: setTimeout(() => {
+                restartWorker();
+                showDiagnostics([{
+                    level: "error",
+                    message: `Layout timed out after ${RENDER_TIMEOUT_MS / 1000}s. `
+                        + `This graph may have too many edge crossings to lay out.`,
+                }]);
+            }, RENDER_TIMEOUT_MS),
+        };
 
-        if (result.status !== "success") {
-            // Leave the previous graph on screen so a typo mid-edit doesn't
-            // blank the pane.
-            showDiagnostics(result.errors);
-            return;
-        }
-
-        showDiagnostics(result.errors);
-        lastSvgSource = result.output;
-        viewport.replaceChildren(toResponsiveElement(result.output));
-        listeners.forEach((fn) => fn(lastSvgSource));
+        worker.postMessage({ id, dot });
     }
 
     function showDiagnostics(errors = []) {
@@ -54,7 +105,6 @@ export async function createRenderer({ viewport, diagnostics }) {
     return {
         render,
         getSvgSource: () => lastSvgSource,
-        onRender(fn) { listeners.add(fn); },
     };
 }
 

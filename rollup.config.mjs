@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 
 import resolve from "@rollup/plugin-node-resolve";
@@ -14,7 +14,12 @@ const watching = process.env.ROLLUP_WATCH === "true";
 function copyStatic(files) {
     return {
         name: "copy-static",
-        buildStart() {
+        async buildStart() {
+            // Clear stale output (old sourcemaps, renamed chunks) on a one-off
+            // build. Skipped while watching, where the dev server is reading
+            // from this directory.
+            if (!watching) await rm(OUT_DIR, { recursive: true, force: true });
+
             // Rebuild when the HTML/CSS change, not just the JS.
             files.forEach((file) => this.addWatchFile(file));
         },
@@ -28,10 +33,15 @@ function copyStatic(files) {
 }
 
 export default {
-    input: "src/main.js",
+    // The worker is a second entry point; main.js loads it by output filename.
+    input: {
+        main: "src/main.js",
+        worker: "src/worker.js",
+    },
     output: {
         dir: OUT_DIR,
         format: "esm",
+        entryFileNames: "[name].js",
         sourcemap: watching,
     },
     plugins: [

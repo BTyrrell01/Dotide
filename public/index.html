@@ -16,7 +16,17 @@
             <div class="pane pane--editor" id="editor"></div>
 
             <div class="pane pane--graph">
-                <div class="graph-viewport" id="graph"></div>
+                <div class="graph-viewport" id="graph">
+                    <div class="graph-stage" id="stage"></div>
+                </div>
+
+                <div class="zoom-controls" id="zoom-controls">
+                    <button type="button" data-zoom="in" title="Zoom in" aria-label="Zoom in">+</button>
+                    <button type="button" data-zoom="out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+                    <button type="button" data-zoom="home" title="Reset view" aria-label="Reset view">&#8962;</button>
+                </div>
+
+                <div class="busy" id="busy" hidden>Laying out&hellip;</div>
                 <div class="diagnostics" id="diagnostics" hidden></div>
             </div>
         </main>
