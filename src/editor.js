@@ -63,5 +63,16 @@ export function createEditor({ parent, doc, onChange, oneDarkTheme }) {
     return {
         view,
         getSource: () => view.state.doc.toString(),
+
+        /**
+         * Replaces the whole document. Goes through a normal transaction, so
+         * the change is undoable and the onChange handler renders and saves it
+         * like any other edit.
+         */
+        setSource(text) {
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: text },
+            });
+        },
     };
 }

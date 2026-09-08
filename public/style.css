@@ -26,6 +26,10 @@ html, body {
 }
 
 .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background-color: var(--surface);
@@ -180,6 +184,7 @@ html, body {
     letter-spacing: 0.04em;
 }
 
+.app-header button,
 .app-footer button {
     font: inherit;
     padding: 5px 12px;
@@ -189,7 +194,9 @@ html, body {
     cursor: pointer;
 }
 
+.app-header button:hover,
 .app-footer button:hover:not(:disabled) { background-color: var(--surface-alt); }
+
 .app-footer button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .status {
