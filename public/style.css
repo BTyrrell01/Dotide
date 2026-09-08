@@ -43,14 +43,15 @@ html, body {
 
 .app-logo {
     display: block;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
 }
 
-/* Matches body text: the rest of the chrome is all 14px/400 system-ui. */
+/* Weight stays at the 400 the rest of the chrome uses; size carries the
+   title instead, so it reads as a heading without shouting. */
 .app-header h1 {
     margin: 0;
-    font-size: 1rem;
+    font-size: 18px;
     font-weight: 400;
 }
 
