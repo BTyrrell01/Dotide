@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <!--
+        The graph A -> B, A -> C, C -> B, drawn for legibility at tab sizes:
+        square viewBox, no text labels, and strokes heavy enough to survive
+        rasterization down to 16px.
+    -->
+    <g stroke="#2b2b2b" fill="#2b2b2b">
+        <!-- A -> B -->
+        <line x1="25.8" y1="15.0" x2="30.8" y2="15.0" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="38.2,15.0 30.8,19.5 30.8,10.5" stroke="none"/>
+
+        <!-- A -> C -->
+        <line x1="19.5" y1="25.4" x2="23.0" y2="32.0" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="26.5,38.6 19.0,34.1 27.0,29.9" stroke="none"/>
+
+        <!-- C -> B -->
+        <line x1="37.5" y1="38.6" x2="41.0" y2="32.0" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="44.5,25.4 45.0,34.1 37.0,29.9" stroke="none"/>
+    </g>
+
+    <circle cx="14" cy="15" r="9" fill="#fa8072" stroke="#d92b1c" stroke-width="3.5"/>
+    <circle cx="50" cy="15" r="9" fill="#a9d6e8" stroke="#1f4fd8" stroke-width="3.5"/>
+    <circle cx="32" cy="49" r="9" fill="#96e096" stroke="#1f9e34" stroke-width="3.5"/>
+</svg>

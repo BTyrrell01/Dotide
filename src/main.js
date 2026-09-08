@@ -1,24 +1,43 @@
 import { createEditor } from "./editor.js";
 import { createRenderer } from "./renderer.js";
 import { registerExportButtons } from "./export.js";
+import { createPanZoom } from "./panzoom.js";
+import { loadDocument, saveDocument } from "./storage.js";
 
 const INITIAL_DOC = "digraph {\n    a -> b\n}\n";
-const RENDER_DEBOUNCE_MS = 200;
+const DEBOUNCE_MS = 200;
 
-async function main() {
-    const renderer = await createRenderer({
-        viewport: document.querySelector("#graph"),
+function main() {
+    const busy = document.querySelector("#busy");
+
+    const renderer = createRenderer({
+        stage: document.querySelector("#stage"),
         diagnostics: document.querySelector("#diagnostics"),
+        onBusy: (isBusy) => { busy.hidden = !isBusy; },
     });
 
-    let renderTimeout;
+    const doc = loadDocument(INITIAL_DOC);
+    let debounce;
+
     const editor = createEditor({
         parent: document.querySelector("#editor"),
-        doc: INITIAL_DOC,
+        doc,
         onChange(text) {
-            clearTimeout(renderTimeout);
-            renderTimeout = setTimeout(() => renderer.render(text), RENDER_DEBOUNCE_MS);
+            clearTimeout(debounce);
+            debounce = setTimeout(() => {
+                renderer.render(text);
+                saveDocument(text);
+            }, DEBOUNCE_MS);
         },
+    });
+
+    // The debounce can swallow the last few keystrokes before the tab closes.
+    window.addEventListener("beforeunload", () => saveDocument(editor.getSource()));
+
+    createPanZoom({
+        viewport: document.querySelector("#graph"),
+        stage: document.querySelector("#stage"),
+        controls: document.querySelector("#zoom-controls"),
     });
 
     registerExportButtons({
@@ -28,11 +47,17 @@ async function main() {
         getDotSource: editor.getSource,
     });
 
-    renderer.render(INITIAL_DOC);
+    renderer.render(doc);
 }
 
-main().catch((err) => {
+try {
+    main();
+} catch (err) {
+    // Worker construction and DOM lookups happen synchronously here; a failure
+    // would otherwise leave a blank page with only a console message.
     console.error("Failed to start:", err);
-    document.querySelector("#diagnostics").textContent = `Failed to start: ${err.message}`;
-    document.querySelector("#diagnostics").hidden = false;
-});
+    const diagnostics = document.querySelector("#diagnostics");
+    diagnostics.className = "diagnostics diagnostics--error";
+    diagnostics.textContent = `Failed to start: ${err.message}`;
+    diagnostics.hidden = false;
+}
