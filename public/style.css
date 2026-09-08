@@ -35,10 +35,23 @@ html, body {
     background-color: var(--surface);
 }
 
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-logo {
+    display: block;
+    width: 24px;
+    height: 24px;
+}
+
+/* Matches body text: the rest of the chrome is all 14px/400 system-ui. */
 .app-header h1 {
     margin: 0;
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* Editor / graph split. min-height:0 lets the panes shrink inside the flex column
