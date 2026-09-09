@@ -166,10 +166,17 @@ html, body {
 /*
  * An unfilled cluster has fill="none", so its interior would not receive
  * clicks. Nodes come later in the document and stay on top of it.
+ *
+ * A rounded cluster is drawn as a path rather than a polygon, so both need
+ * covering here and in the selected rule below.
  */
-.graph-stage g.cluster polygon { pointer-events: all; }
+.graph-stage g.cluster polygon,
+.graph-stage g.cluster path {
+    pointer-events: all;
+}
 
 .graph-stage g.cluster.is-selected polygon,
+.graph-stage g.cluster.is-selected path,
 .graph-stage g.node.is-selected ellipse,
 .graph-stage g.node.is-selected polygon,
 .graph-stage g.node.is-selected path,

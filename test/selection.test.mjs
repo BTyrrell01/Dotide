@@ -250,5 +250,49 @@ export default async function ({ page, errors, check }) {
           (await highlighted(page)).filter((m) => m === "cluster_x").length === 2,
           (await highlighted(page)).join(", "));
 
+    // A rounded cluster is drawn as a path rather than a polygon, so it needs
+    // the same treatment as a polygon one.
+    await typeFresh(page, 'digraph { subgraph cluster_r { style=rounded; label="r"; rr } }');
+    await page.waitForFunction(() => document.querySelector("#stage svg g.cluster"), { timeout: 8000 });
+    await settle(400);
+
+    const shape = await page.$eval("#stage svg g.cluster", (g) => {
+        const el = g.querySelector("polygon, path");
+        return { tag: el?.tagName, stroke: getComputedStyle(el).stroke, width: getComputedStyle(el).strokeWidth };
+    });
+    check("rounded cluster is drawn as a path", shape.tag === "path", shape.tag);
+
+    const roundedPoint = await page.evaluate(() => {
+        const box = document.querySelector("#stage svg g.cluster").getBoundingClientRect();
+        return { x: box.left + 8, y: box.top + box.height * 0.72 };
+    });
+    await page.mouse.click(roundedPoint.x, roundedPoint.y);
+    await settle(400);
+
+    check("rounded cluster is clickable inside", (await markedInGraph(page)).includes("cluster_r"),
+          (await markedInGraph(page)).join(", ") || "(nothing)");
+
+    const roundedAfter = await page.$eval("#stage svg g.cluster", (g) => {
+        const el = g.querySelector("polygon, path");
+        return { stroke: getComputedStyle(el).stroke, width: getComputedStyle(el).strokeWidth };
+    });
+    check("rounded cluster outline is painted like a node",
+          roundedAfter.stroke !== shape.stroke && roundedAfter.width === "2.5px",
+          `${shape.stroke} ${shape.width} -> ${roundedAfter.stroke} ${roundedAfter.width}`);
+
+    // And the painted stroke must match what a selected node gets.
+    const nodeStroke = await page.evaluate(async () => {
+        const t = [...document.querySelectorAll("#stage svg g.node title")][0];
+        t.parentElement.classList.add("is-selected");
+        const el = t.parentElement.querySelector("ellipse, polygon, path");
+        const style = getComputedStyle(el);
+        const result = { stroke: style.stroke, width: style.strokeWidth };
+        t.parentElement.classList.remove("is-selected");
+        return result;
+    });
+    check("cluster and node selection paint identically",
+          roundedAfter.stroke === nodeStroke.stroke && roundedAfter.width === nodeStroke.width,
+          `cluster ${roundedAfter.stroke}/${roundedAfter.width} vs node ${nodeStroke.stroke}/${nodeStroke.width}`);
+
     check("no page errors", errors.length === 0, errors.join(" | "));
 }
