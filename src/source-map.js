@@ -20,6 +20,9 @@ function nodeName(state, node) {
     return { text: raw.slice(1, -1), from: quoted.from, to: quoted.to };
 }
 
+/** Attributes whose value names a cluster, so those references count too. */
+const CLUSTER_REFERENCES = new Set(["lhead", "ltail"]);
+
 /** Every Node in the document, in source order. */
 function allNodes(state) {
     const found = [];
@@ -33,11 +36,39 @@ function allNodes(state) {
     return found;
 }
 
-/** Ranges of every occurrence of a node name. */
-export function nodeRanges(state, name) {
-    return allNodes(state)
+/**
+ * Every place an identifier appears: nodes, the header of a subgraph declaring
+ * it, and lhead/ltail attributes referring to a cluster by name.
+ */
+export function identifierRanges(state, name) {
+    const ranges = allNodes(state)
         .filter((node) => node.text === name)
         .map(({ from, to }) => ({ from, to }));
+
+    syntaxTree(state).iterate({
+        enter(ref) {
+            if (ref.name === "SubgraphHeader") {
+                const label = ref.node.getChild("Name");
+                if (label && state.sliceDoc(label.from, label.to) === name) {
+                    ranges.push({ from: label.from, to: label.to });
+                }
+                return;
+            }
+
+            if (ref.name !== "Attribute") return;
+
+            const attribute = ref.node.getChild("AttributeName");
+            const value = ref.node.getChild("AttributeValue");
+            if (!attribute || !value) return;
+
+            if (!CLUSTER_REFERENCES.has(state.sliceDoc(attribute.from, attribute.to))) return;
+            if (state.sliceDoc(value.from, value.to).replace(/^"|"$/g, "") !== name) return;
+
+            ranges.push({ from: value.from, to: value.to });
+        },
+    });
+
+    return ranges;
 }
 
 /**
@@ -82,7 +113,7 @@ export function rangesForTitles(state, titles) {
         if (edge) {
             ranges.push(...edgeRanges(state, edge.tail, edge.head));
         } else {
-            ranges.push(...nodeRanges(state, title));
+            ranges.push(...identifierRanges(state, title));
         }
     }
 
