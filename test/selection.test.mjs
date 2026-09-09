@@ -1,8 +1,8 @@
 import { settle, typeFresh, docText } from "./helpers.mjs";
 
-/** Screen centre of the node or edge with the given title. */
+/** Screen centre of the node, edge or cluster with the given title. */
 const centreOf = (page, title) => page.evaluate((wanted) => {
-    const match = [...document.querySelectorAll("#stage svg g.node title, #stage svg g.edge title")]
+    const match = [...document.querySelectorAll("#stage svg g.node title, #stage svg g.edge title, #stage svg g.cluster title")]
         .find((t) => t.textContent === wanted);
     if (!match) return null;
     const box = match.parentElement.getBoundingClientRect();
@@ -182,6 +182,73 @@ export default async function ({ page, errors, check }) {
     check("editing clears the graph mark too", (await markedInGraph(page)).length === 0,
           (await markedInGraph(page)).join(", "));
     check("editing clears the editor highlight too", (await highlighted(page)).length === 0);
+
+    // --- clusters ---
+    page.once("dialog", (d) => d.accept());
+    await page.click("#reset");
+    await page.waitForFunction(() => document.querySelector(".cm-content").textContent.includes("cluster_0"), { timeout: 8000 });
+    await settle(600);
+
+    /** A point inside a cluster, clear of its nodes. */
+    const insideCluster = (name) => page.evaluate((wanted) => {
+        const title = [...document.querySelectorAll("#stage svg g.cluster title")].find((t) => t.textContent === wanted);
+        const box = title.parentElement.getBoundingClientRect();
+        return { x: box.left + 8, y: box.top + box.height * 0.6 };
+    }, name);
+
+    // The filled cluster was always clickable; the unfilled one needed help.
+    for (const name of ["cluster_0", "cluster_1"]) {
+        const point = await insideCluster(name);
+        await page.mouse.click(point.x, point.y);
+        await settle(300);
+        check(`clicking inside ${name} selects it`, (await markedInGraph(page)).includes(name),
+              (await markedInGraph(page)).join(", ") || "(nothing)");
+        check(`${name} is highlighted in the source`,
+              (await highlighted(page)).some((m) => m === name), (await highlighted(page)).join(", ") || "(none)");
+    }
+
+    // A cluster must not be swallowed by a box drawn over one corner of it.
+    await page.mouse.click(pane.x, pane.y);
+    await settle(200);
+    const corner = await insideCluster("cluster_0");
+    await page.keyboard.down("Shift");
+    await page.mouse.move(corner.x - 20, corner.y - 20);
+    await page.mouse.down();
+    await page.mouse.move(corner.x + 40, corner.y + 40, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    await settle(400);
+    check("a box over part of a cluster does not select it",
+          !(await markedInGraph(page)).includes("cluster_0"), (await markedInGraph(page)).join(", ") || "(nothing)");
+
+    // But a box around the whole thing does.
+    await page.click('[data-zoom="home"]');
+    await settle(200);
+    const clusterBox = await page.evaluate(() => {
+        const title = [...document.querySelectorAll("#stage svg g.cluster title")].find((t) => t.textContent === "cluster_0");
+        const r = title.parentElement.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    });
+    await page.keyboard.down("Shift");
+    await page.mouse.move(clusterBox.left - 12, clusterBox.top - 12);
+    await page.mouse.down();
+    await page.mouse.move(clusterBox.right + 12, clusterBox.bottom + 12, { steps: 8 });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    await settle(400);
+    check("a box enclosing a cluster selects it", (await markedInGraph(page)).includes("cluster_0"),
+          (await markedInGraph(page)).join(", "));
+
+    // lhead references count as occurrences of the cluster name.
+    await typeFresh(page, "digraph { compound=true subgraph cluster_x { p } q -> p [lhead=cluster_x] }");
+    await page.waitForFunction(() => document.querySelector("#stage svg g.cluster"), { timeout: 8000 });
+    await settle(400);
+    const cx = await insideCluster("cluster_x");
+    await page.mouse.click(cx.x, cx.y);
+    await settle(300);
+    check("lhead references are highlighted alongside the declaration",
+          (await highlighted(page)).filter((m) => m === "cluster_x").length === 2,
+          (await highlighted(page)).join(", "));
 
     check("no page errors", errors.length === 0, errors.join(" | "));
 }

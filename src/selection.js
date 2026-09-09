@@ -19,13 +19,17 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
     viewport.appendChild(marquee);
 
     function titleOf(element) {
-        const group = element?.closest?.("g.node, g.edge");
+        const group = element?.closest?.("g.node, g.edge, g.cluster");
         return group?.querySelector("title")?.textContent ?? null;
     }
 
     const intersects = (box, rect) =>
         box.right >= rect.left && box.left <= rect.right
         && box.bottom >= rect.top && box.top <= rect.bottom;
+
+    const contains = (rect, box) =>
+        box.left >= rect.left && box.right <= rect.right
+        && box.top >= rect.top && box.bottom <= rect.bottom;
 
     /**
      * Nodes whose box meets the rectangle, plus edges running between two of
@@ -52,7 +56,18 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
             if (ends && nodes.has(ends.tail) && nodes.has(ends.head)) edges.push(title);
         }
 
-        return [...nodes, ...edges];
+        // A cluster is nearly always bigger than what you dragged around, so
+        // intersection would select it from a box drawn over one corner. It
+        // counts only when the box encloses it, the same spirit as requiring
+        // both endpoints of an edge.
+        const clusters = [];
+        for (const group of stage.querySelectorAll("g.cluster")) {
+            if (!contains(rect, group.getBoundingClientRect())) continue;
+            const title = group.querySelector("title")?.textContent;
+            if (title) clusters.push(title);
+        }
+
+        return [...nodes, ...edges, ...clusters];
     }
 
     /**
@@ -63,7 +78,7 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
      * written onto the elements here.
      */
     function paint() {
-        for (const group of stage.querySelectorAll("g.node, g.edge")) {
+        for (const group of stage.querySelectorAll("g.node, g.edge, g.cluster")) {
             const title = group.querySelector("title")?.textContent;
             group.classList.toggle("is-selected", Boolean(title) && selected.has(title));
         }
