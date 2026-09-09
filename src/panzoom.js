@@ -10,6 +10,9 @@ const WHEEL_SENSITIVITY = 0.0015;
 /** Firefox reports wheel deltas in lines rather than pixels. */
 const LINE_HEIGHT_PX = 16;
 
+/** Below this much movement a drag counts as a click rather than a pan. */
+const CLICK_SLOP_PX = 4;
+
 /**
  * Pans and zooms the graph by transforming `stage`, leaving the rendered SVG
  * untouched so exports are unaffected by the current view.
@@ -17,7 +20,7 @@ const LINE_HEIGHT_PX = 16;
  * The transform survives re-renders: while you iterate on a graph, the view
  * stays where you put it. `reset` (the home button) returns to the fitted view.
  */
-export function createPanZoom({ viewport, stage, controls }) {
+export function createPanZoom({ viewport, stage, controls, selection = null }) {
     let scale = 1;
     let x = 0;
     let y = 0;
@@ -64,31 +67,76 @@ export function createPanZoom({ viewport, stage, controls }) {
         zoomAt(event.clientX, event.clientY, Math.exp(-delta * WHEEL_SENSITIVITY));
     }, { passive: false });
 
-    let dragOrigin = null;
+    let drag = null;
+
+    const rectBetween = (a, b) => ({
+        left: Math.min(a.x, b.x),
+        top: Math.min(a.y, b.y),
+        right: Math.max(a.x, b.x),
+        bottom: Math.max(a.y, b.y),
+    });
 
     viewport.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
-        dragOrigin = { x: event.clientX, y: event.clientY };
+
+        drag = {
+            start: { x: event.clientX, y: event.clientY },
+            last: { x: event.clientX, y: event.clientY },
+            moved: 0,
+            // Shift selects; a plain drag still pans. The target is recorded
+            // here because setPointerCapture redirects later events to the
+            // viewport, so by pointerup the graph element is no longer the
+            // target.
+            marquee: event.shiftKey && Boolean(selection),
+            target: event.target,
+        };
+
+        // Shift-drag is a browser text-selection gesture; suppress it.
+        if (drag.marquee) event.preventDefault();
+
         viewport.setPointerCapture(event.pointerId);
-        viewport.classList.add("is-panning");
+        viewport.classList.add(drag.marquee ? "is-selecting" : "is-panning");
     });
 
     viewport.addEventListener("pointermove", (event) => {
-        if (!dragOrigin) return;
-        x += event.clientX - dragOrigin.x;
-        y += event.clientY - dragOrigin.y;
-        dragOrigin = { x: event.clientX, y: event.clientY };
-        apply();
+        if (!drag) return;
+
+        const point = { x: event.clientX, y: event.clientY };
+        drag.moved += Math.hypot(point.x - drag.last.x, point.y - drag.last.y);
+
+        if (drag.marquee) {
+            selection.marqueeMove(rectBetween(drag.start, point));
+        } else {
+            x += point.x - drag.last.x;
+            y += point.y - drag.last.y;
+            apply();
+        }
+
+        drag.last = point;
     });
 
-    for (const type of ["pointerup", "pointercancel"]) {
-        viewport.addEventListener(type, (event) => {
-            if (!dragOrigin) return;
-            dragOrigin = null;
-            viewport.releasePointerCapture(event.pointerId);
-            viewport.classList.remove("is-panning");
-        });
-    }
+    viewport.addEventListener("pointerup", (event) => {
+        if (!drag) return;
+        const finished = drag;
+        drag = null;
+
+        viewport.releasePointerCapture(event.pointerId);
+        viewport.classList.remove("is-panning", "is-selecting");
+
+        if (finished.marquee) {
+            selection.marqueeEnd(rectBetween(finished.start, { x: event.clientX, y: event.clientY }));
+        } else if (selection && finished.moved < CLICK_SLOP_PX) {
+            selection.pick(finished.target);
+        }
+    });
+
+    viewport.addEventListener("pointercancel", (event) => {
+        if (!drag) return;
+        if (drag.marquee) selection.cancelMarquee();
+        drag = null;
+        viewport.releasePointerCapture(event.pointerId);
+        viewport.classList.remove("is-panning", "is-selecting");
+    });
 
     const actions = {
         in: () => zoomCenter(BUTTON_STEP),

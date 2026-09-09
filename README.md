@@ -41,6 +41,8 @@ anything else, since it names a directory that gets recursively deleted.
 | `src/renderer.js` | Drives the render worker; owns the graph pane and error reporting |
 | `src/worker.js` | Worker thread running Graphviz (WASM) |
 | `src/panzoom.js` | Pan, zoom, and the view controls |
+| `src/selection.js` | Click and shift-drag selection in the graph |
+| `src/source-map.js` | Maps graph nodes and edges back to source ranges |
 | `src/storage.js` | Document, engine and theme persistence via localStorage |
 | `src/theme.js` | Light / dark / system theme resolution |
 | `src/completion.js` | Context-aware DOT completion |
@@ -48,6 +50,14 @@ anything else, since it names a directory that gets recursively deleted.
 | `src/export.js` | SVG / PNG / DOT export buttons |
 
 `dist/` is build output and is not checked in.
+
+## Selecting
+
+Clicking a node or edge highlights every occurrence of it in the source. Shift-
+drag draws a selection box; plain drag still pans. A box selects the nodes it
+touches, plus edges running between two of them — an edge's bounding box spans
+its whole curve, so testing edges by intersection alone would pull in anything
+passing nearby.
 
 ## Notes
 
