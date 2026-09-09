@@ -20,7 +20,8 @@ export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) 
         foldGutter(),
         drawSelection(),
         dropCursor(),
-        indentUnit.of("    "),
+        // Tabs, matching the default document.
+        indentUnit.of("\t"),
         EditorState.allowMultipleSelections.of(true),
         indentOnInput(),
         bracketMatching(),
