@@ -49,12 +49,19 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
         worker.onerror = (event) => {
             event.preventDefault();
             settle();
+
+            // A worker that failed at load stays broken, so drop it. The next
+            // render builds a fresh one, which rate-limits retries to user
+            // activity rather than retrying in a loop.
+            worker.terminate();
+            worker = null;
+
             showDiagnostics([{ message: `Renderer failed: ${event.message}` }], true);
         };
     }
 
     function restartWorker() {
-        worker.terminate();
+        worker?.terminate();
         settle();
         startWorker();
     }
@@ -72,6 +79,7 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
         // The worker handles one message at a time, so a slow layout already in
         // progress would delay this one. Kill it: its result is stale anyway.
         if (pending) restartWorker();
+        if (!worker) startWorker();
 
         const id = ++nextId;
         pending = {

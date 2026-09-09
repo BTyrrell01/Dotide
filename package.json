@@ -9,7 +9,8 @@
   "scripts": {
     "build": "rollup --config",
     "dev": "rollup --config --watch",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "test": "node test/run.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.3",
+    "puppeteer-core": "^25.10.0",
     "rollup": "^4.63.1",
     "rollup-plugin-serve": "^3.0.0"
   }

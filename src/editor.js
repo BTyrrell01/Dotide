@@ -14,7 +14,7 @@ import { dotCompletionSource } from "./completion.js";
 
 const dotLanguage = dot();
 
-export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
+function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
     const extensions = [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -70,7 +70,6 @@ export function createEditor({ parent, doc, onChange, oneDarkTheme }) {
     });
 
     return {
-        view,
         getSource: () => view.state.doc.toString(),
 
         /**
