@@ -1,4 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
+import { snippetCompletion } from "@codemirror/autocomplete";
 
 /**
  * Context-aware completion for DOT.
@@ -101,7 +102,7 @@ const STYLES = {
 };
 
 /** Text immediately before the cursor that looks like `attribute = partialValue`. */
-const VALUE_POSITION = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z0-9_.#]*)$/;
+const VALUE_POSITION = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?([A-Za-z0-9_.# ]*)$/;
 const WORD_BEFORE = /[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** An edge operator with only a partial name after it: `a -> b`, `a -- `. */
@@ -227,7 +228,14 @@ function attributeOptions(kind) {
             else seen.set(name, label);
         }
     }
-    return [...seen].map(([name, detail]) => option(name, "property", detail));
+
+    // Completes to name="" with the cursor between the quotes: free-text
+    // attributes are ready to type into, and enumerated ones still complete
+    // their values inside the quotes. Quoting is valid around any DOT value.
+    return [...seen].map(([name, detail]) => snippetCompletion(
+        name + '="${}"',
+        { label: name, type: "property", detail },
+    ));
 }
 
 /** Values offered for `attribute = ...`, or null when we have nothing useful. */
@@ -272,7 +280,7 @@ export function dotCompletionSource(context) {
     const { state, pos } = context;
     const node = syntaxTree(state).resolveInner(pos, -1);
 
-    if (ancestor(node, [...OPAQUE])) return null;
+    if (ancestor(node, ["LineComment", "BlockComment"])) return null;
 
     const attributes = ancestor(node, ["Attributes"]);
     const kind = attributeKind(state, node);
@@ -285,9 +293,14 @@ export function dotCompletionSource(context) {
     if (inValue) {
         const [, attribute, typed] = inValue;
         const options = valueOptions(state, attribute, kind);
+        // No known values means free text such as a label: stay quiet rather
+        // than interrupting prose with a list of node names.
         if (!options) return null;
         return { from: pos - typed.length, options, validFor: /^[A-Za-z0-9_.#]*$/ };
     }
+
+    // Any other string is prose or a quoted identifier being typed.
+    if (ancestor(node, [...OPAQUE])) return null;
 
     const word = WORD_BEFORE.exec(before);
     const from = word ? pos - word[0].length : pos;
