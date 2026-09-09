@@ -2,7 +2,7 @@ import { EditorState } from '@codemirror/state';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { indentWithTab, history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { foldGutter, indentOnInput, indentUnit, bracketMatching, foldKeymap, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
-import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap, acceptCompletion } from '@codemirror/autocomplete';
 import { lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, keymap, EditorView } from '@codemirror/view';
 
 // Theme
@@ -10,6 +10,9 @@ import { oneDark } from "@codemirror/theme-one-dark";
 
 // Language
 import { dot } from "@viz-js/lang-dot";
+import { dotCompletionSource } from "./completion.js";
+
+const dotLanguage = dot();
 
 export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
     const extensions = [
@@ -32,6 +35,9 @@ export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) 
         highlightActiveLine(),
         highlightSelectionMatches(),
         keymap.of([
+            // Before indentWithTab: acceptCompletion declines when no
+            // completion is open, so Tab falls through to indenting.
+            { key: "Tab", run: acceptCompletion },
             indentWithTab,
             ...closeBracketsKeymap,
             ...defaultKeymap,
@@ -40,7 +46,9 @@ export function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) 
             ...foldKeymap,
             ...completionKeymap,
         ]),
-        dot(),
+        dotLanguage,
+        // lang-dot ships no completion data of its own.
+        dotLanguage.language.data.of({ autocomplete: dotCompletionSource }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     ];
 
