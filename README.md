@@ -9,7 +9,13 @@ visualizer. DOT source on the left, live Graphviz render on the right.
 npm install
 npm run dev     # build, watch, and serve on http://localhost:10001
 npm run build   # one-off build into dist/
+npm test        # build, then drive the app in a real browser
 ```
+
+`npm test` builds into `dist-test/`, serves it on an ephemeral port, and runs
+each suite in `test/` against a headless Chrome, so it never disturbs a running
+dev server. Pass names to narrow it: `npm test -- engine completion`. Set
+`CHROME_PATH` if Chrome is not in a standard location.
 
 `OUT_DIR` and `PORT` override the output directory and dev-server port, so a
 second instance can run without disturbing one already using `dist/` and 10001:
@@ -29,12 +35,15 @@ anything else, since it names a directory that gets recursively deleted.
 | Path | |
 | --- | --- |
 | `public/` | Hand-written static assets, copied into `dist/` by the build |
+| `test/` | Browser tests; one suite per concern, run by `test/run.mjs` |
 | `src/main.js` | Entry point; wires the modules below together |
 | `src/editor.js` | CodeMirror setup |
 | `src/renderer.js` | Drives the render worker; owns the graph pane and error reporting |
 | `src/worker.js` | Worker thread running Graphviz (WASM) |
 | `src/panzoom.js` | Pan, zoom, and the view controls |
 | `src/storage.js` | Document persistence via localStorage |
+| `src/completion.js` | Context-aware DOT completion |
+| `src/default-graph.js` | The document new visitors see, and what reset restores |
 | `src/export.js` | SVG / PNG / DOT export buttons |
 
 `dist/` is build output and is not checked in.

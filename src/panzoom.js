@@ -103,5 +103,5 @@ export function createPanZoom({ viewport, stage, controls }) {
 
     apply();
 
-    return { reset, ...actions };
+    return { reset };
 }
