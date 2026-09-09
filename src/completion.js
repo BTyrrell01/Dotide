@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { snippetCompletion } from "@codemirror/autocomplete";
+import { snippetCompletion, startCompletion } from "@codemirror/autocomplete";
 
 /**
  * Context-aware completion for DOT.
@@ -107,6 +107,16 @@ const WORD_BEFORE = /[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** An edge operator with only a partial name after it: `a -> b`, `a -- `. */
 const EDGE_TARGET = /(?:->|--)\s*[A-Za-z0-9_]*$/;
+
+/**
+ * Attributes whose value is arbitrary text rather than an enumerated keyword.
+ * These complete to name="" with the cursor inside; everything else completes
+ * to a bare name= so enumerated values stay unquoted.
+ */
+const FREE_TEXT_ATTRIBUTES = new Set([
+    "label", "xlabel", "headlabel", "taillabel", "comment", "tooltip",
+    "fontname", "labelfontname", "image", "URL", "target",
+]);
 
 /** Attributes whose value names a cluster rather than a plain value. */
 const CLUSTER_ATTRIBUTES = new Set(["lhead", "ltail"]);
@@ -229,13 +239,33 @@ function attributeOptions(kind) {
         }
     }
 
-    // Completes to name="" with the cursor between the quotes: free-text
-    // attributes are ready to type into, and enumerated ones still complete
-    // their values inside the quotes. Quoting is valid around any DOT value.
-    return [...seen].map(([name, detail]) => snippetCompletion(
-        name + '="${}"',
-        { label: name, type: "property", detail },
-    ));
+    return [...seen].map(([name, detail]) => attributeCompletion(name, detail));
+}
+
+/**
+ * An attribute completion that also supplies the `=`.
+ *
+ * Free text gets quotes with the cursor between them, ready to type into.
+ * Everything else completes to a bare `name=` and opens the value list, so
+ * enumerated values stay unquoted.
+ */
+function attributeCompletion(name, detail) {
+    if (FREE_TEXT_ATTRIBUTES.has(name)) {
+        return snippetCompletion(name + '="${}"', { label: name, type: "property", detail });
+    }
+
+    return {
+        label: name,
+        type: "property",
+        detail,
+        apply(view, completion, from, to) {
+            view.dispatch({
+                changes: { from, to, insert: `${name}=` },
+                selection: { anchor: from + name.length + 1 },
+            });
+            startCompletion(view);
+        },
+    };
 }
 
 /** Values offered for `attribute = ...`, or null when we have nothing useful. */
@@ -333,7 +363,7 @@ export function dotCompletionSource(context) {
         options: [
             ...nodeOptions(state, pos, allowQuoted, 1),
             ...KEYWORDS.map((k) => option(k, "keyword")),
-            ...GRAPH_ATTRIBUTES.map((a) => option(a, "property", "graph")),
+            ...GRAPH_ATTRIBUTES.map((a) => attributeCompletion(a, "graph")),
         ],
         validFor: /^[A-Za-z0-9_]*$/,
     };
