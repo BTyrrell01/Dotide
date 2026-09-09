@@ -53,8 +53,8 @@ anything else, since it names a directory that gets recursively deleted.
 
 ## Selecting
 
-Clicking a node or edge highlights every occurrence of it in the source. Shift-
-drag draws a selection box; plain drag still pans. A box selects the nodes it
+Clicking a node or edge outlines it in the graph and highlights every occurrence
+of it in the source. Shift-drag draws a selection box; plain drag still pans. A box selects the nodes it
 touches, plus edges running between two of them — an edge's bounding box spans
 its whole curve, so testing edges by intersection alone would pull in anything
 passing nearby.

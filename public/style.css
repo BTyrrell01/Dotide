@@ -11,6 +11,7 @@
     /* Controls floating over the graph. */
     --overlay: rgba(255, 255, 255, 0.92);
     --highlight: #ffe58a;
+    --selected: #d9730d;
     --marquee-border: #4a7fd0;
     --marquee-fill: rgba(74, 127, 208, 0.14);
 }
@@ -31,6 +32,7 @@
     --warning-bg: #352d18;
     --overlay: rgba(30, 30, 30, 0.92);
     --highlight: #6a5a1e;
+    --selected: #ffa657;
     --marquee-border: #7aa7e8;
     --marquee-fill: rgba(122, 167, 232, 0.18);
 }
@@ -154,6 +156,25 @@ html, body {
 .cm-graph-highlight {
     background-color: var(--highlight);
     border-radius: 2px;
+}
+
+/*
+ * Selected shapes in the graph. Graphviz writes fill and stroke as presentation
+ * attributes, which any CSS rule outranks, so these win without !important.
+ * Only the stroke is touched, so a node keeps whatever fill the document gave it.
+ */
+.graph-stage g.node.is-selected ellipse,
+.graph-stage g.node.is-selected polygon,
+.graph-stage g.node.is-selected path,
+.graph-stage g.edge.is-selected path {
+    stroke: var(--selected);
+    stroke-width: 2.5;
+}
+
+/* Arrowheads are filled polygons rather than stroked paths. */
+.graph-stage g.edge.is-selected polygon {
+    fill: var(--selected);
+    stroke: var(--selected);
 }
 
 /* Shift-drag selection rectangle. */
