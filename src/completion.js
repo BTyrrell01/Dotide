@@ -104,6 +104,12 @@ const STYLES = {
 const VALUE_POSITION = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z0-9_.#]*)$/;
 const WORD_BEFORE = /[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** An edge operator with only a partial name after it: `a -> b`, `a -- `. */
+const EDGE_TARGET = /(?:->|--)\s*[A-Za-z0-9_]*$/;
+
+/** Attributes whose value names a cluster rather than a plain value. */
+const CLUSTER_ATTRIBUTES = new Set(["lhead", "ltail"]);
+
 /** Node types whose contents are text, where completion would be noise. */
 const OPAQUE = new Set([
     "String", "ConcatString", "HTMLString", "HTMLStringContent",
@@ -120,6 +126,63 @@ function ancestor(node, names) {
         if (names.includes(current.name)) return current;
     }
     return null;
+}
+
+/**
+ * Node and cluster names already used in the document.
+ *
+ * Node names are global to the graph in DOT — a node declared inside a cluster
+ * is the same node referenced outside it, which is exactly what the default
+ * document does with `a3 -> end`. So these are deliberately not scoped to the
+ * enclosing subgraph; scoping them would hide valid targets.
+ */
+function documentIdentifiers(state, cursor = null) {
+    const nodes = new Map();
+    const clusters = new Set();
+
+    // The word being typed parses as a node the moment it has a character, so
+    // without this it is offered as a completion of itself.
+    const beingTyped = (from, to) => cursor !== null && from <= cursor && cursor <= to;
+
+    syntaxTree(state).iterate({
+        enter(ref) {
+            if (ref.name === "Node") {
+                // Direct children only: `b:port` parses as Name(b) + Port(Name(port)),
+                // and the port is not a node name.
+                const name = ref.node.getChild("Name");
+                if (name) {
+                    if (beingTyped(name.from, name.to)) return;
+                    const text = state.sliceDoc(name.from, name.to);
+                    if (!nodes.has(text)) nodes.set(text, text);
+                    return;
+                }
+                // Quoted ids keep their quotes when inserted.
+                const quoted = ref.node.getChild("String");
+                if (quoted && !beingTyped(quoted.from, quoted.to)) {
+                    const raw = state.sliceDoc(quoted.from, quoted.to);
+                    nodes.set(raw.slice(1, -1), raw);
+                }
+            } else if (ref.name === "SubgraphHeader") {
+                const name = ref.node.getChild("Name");
+                if (name) clusters.add(state.sliceDoc(name.from, name.to));
+            }
+        },
+    });
+
+    return { nodes, clusters: [...clusters] };
+}
+
+/** Completion options for known node names, boosted so they outrank keywords. */
+function nodeOptions(state, cursor, allowQuoted, boost) {
+    const { nodes } = documentIdentifiers(state, cursor);
+
+    return [...nodes]
+        .filter(([label, apply]) => allowQuoted || label === apply)
+        .map(([label, apply]) => {
+            const item = { label, type: "variable", detail: "node", boost };
+            if (apply !== label) item.apply = apply;
+            return item;
+        });
 }
 
 /**
@@ -168,7 +231,11 @@ function attributeOptions(kind) {
 }
 
 /** Values offered for `attribute = ...`, or null when we have nothing useful. */
-function valueOptions(attribute, kind) {
+function valueOptions(state, attribute, kind) {
+    if (CLUSTER_ATTRIBUTES.has(attribute)) {
+        const { clusters } = documentIdentifiers(state);
+        return clusters.length ? clusters.map((c) => option(c, "variable", "cluster")) : null;
+    }
     if (attribute === "style") {
         return (STYLES[kind] ?? STYLES.node).map((v) => option(v, "constant"));
     }
@@ -180,6 +247,21 @@ function valueOptions(attribute, kind) {
     }
     const values = VALUES[attribute];
     return values ? values.map((v) => option(v, "constant")) : null;
+}
+
+/**
+ * Text back to the start of the current statement, so a value on an earlier
+ * statement cannot be mistaken for this one. Bounded, since this runs on every
+ * keystroke.
+ */
+function statementBefore(state, pos) {
+    const start = Math.max(0, pos - 400);
+    const text = state.sliceDoc(start, pos);
+    const boundary = Math.max(
+        text.lastIndexOf(";"), text.lastIndexOf("{"),
+        text.lastIndexOf("}"), text.lastIndexOf("]"),
+    );
+    return boundary >= 0 ? text.slice(boundary + 1) : text;
 }
 
 /**
@@ -195,16 +277,14 @@ export function dotCompletionSource(context) {
     const attributes = ancestor(node, ["Attributes"]);
     const kind = attributeKind(state, node);
 
-    // Look back only as far as the enclosing bracket or the start of the line,
-    // so a value on an earlier statement cannot be mistaken for this one.
-    const lineStart = state.doc.lineAt(pos).from;
-    const regionStart = Math.max(attributes ? attributes.from + 1 : lineStart, pos - 400);
-    const before = state.sliceDoc(regionStart, pos);
+    const before = attributes
+        ? state.sliceDoc(Math.max(attributes.from + 1, pos - 400), pos)
+        : statementBefore(state, pos);
 
     const inValue = VALUE_POSITION.exec(before);
     if (inValue) {
         const [, attribute, typed] = inValue;
-        const options = valueOptions(attribute, kind);
+        const options = valueOptions(state, attribute, kind);
         if (!options) return null;
         return { from: pos - typed.length, options, validFor: /^[A-Za-z0-9_.#]*$/ };
     }
@@ -216,6 +296,21 @@ export function dotCompletionSource(context) {
         return { from, options: attributeOptions(kind), validFor: /^[A-Za-z0-9_]*$/ };
     }
 
+    // A quoted id would double the quote the user already typed.
+    const allowQuoted = !before.slice(0, before.length - (word ? word[0].length : 0)).endsWith('"');
+
+    // Straight after an edge operator only a node or a subgraph can follow.
+    if (EDGE_TARGET.test(before)) {
+        return {
+            from,
+            options: [
+                ...nodeOptions(state, pos, allowQuoted, 1),
+                option("subgraph", "keyword"),
+            ],
+            validFor: /^[A-Za-z0-9_]*$/,
+        };
+    }
+
     // Statement position. Only volunteer here once something has been typed,
     // otherwise the list pops up on every fresh line.
     if (!word && !context.explicit) return null;
@@ -223,6 +318,7 @@ export function dotCompletionSource(context) {
     return {
         from,
         options: [
+            ...nodeOptions(state, pos, allowQuoted, 1),
             ...KEYWORDS.map((k) => option(k, "keyword")),
             ...GRAPH_ATTRIBUTES.map((a) => option(a, "property", "graph")),
         ],
