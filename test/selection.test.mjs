@@ -12,6 +12,19 @@ const centreOf = (page, title) => page.evaluate((wanted) => {
 const highlighted = (page) =>
     page.$$eval(".cm-graph-highlight", (els) => els.map((e) => e.textContent));
 
+/** Titles of the shapes currently marked as selected in the SVG. */
+const markedInGraph = (page) =>
+    page.$$eval("#stage .is-selected", (els) =>
+        els.map((e) => e.querySelector("title")?.textContent).filter(Boolean));
+
+/** Stroke actually painted on a node's shape, to prove the CSS beats Graphviz. */
+const strokeOf = (page, title) => page.evaluate((wanted) => {
+    const match = [...document.querySelectorAll("#stage svg g.node title")]
+        .find((t) => t.textContent === wanted);
+    const shape = match?.parentElement.querySelector("ellipse, polygon, path");
+    return shape ? getComputedStyle(shape).stroke : null;
+}, title);
+
 export default async function ({ page, errors, check }) {
     // a3 appears four times in the default document.
     const a3 = await centreOf(page, "a3");
@@ -121,5 +134,54 @@ export default async function ({ page, errors, check }) {
           JSON.stringify(marks));
 
     check("document not modified by selecting", (await docText(page)).includes("my node"));
+    // --- the graph itself must show what is selected ---
+    page.once("dialog", (d) => d.accept());
+    await page.click("#reset");
+    await page.waitForFunction(() => document.querySelector(".cm-content").textContent.includes("cluster_0"), { timeout: 8000 });
+    await settle(600);
+
+    const strokeBefore = await strokeOf(page, "a3");
+    const a3again = await centreOf(page, "a3");
+    await page.mouse.click(a3again.x, a3again.y);
+    await settle(300);
+
+    check("the clicked node is marked in the graph", (await markedInGraph(page)).includes("a3"),
+          (await markedInGraph(page)).join(", "));
+    const strokeAfter = await strokeOf(page, "a3");
+    check("the mark actually repaints the stroke", strokeAfter !== strokeBefore,
+          `${strokeBefore} -> ${strokeAfter}`);
+
+    // Clicking empty space clears the graph mark as well as the editor one.
+    await page.mouse.click(pane.x, pane.y);
+    await settle(300);
+    check("clearing removes the graph mark", (await markedInGraph(page)).length === 0);
+
+    // Selecting an edge marks the edge, not its endpoints.
+    const edgeAgain = await centreOf(page, "a0->a1");
+    await page.mouse.click(edgeAgain.x, edgeAgain.y);
+    await settle(300);
+    check("a selected edge is marked", (await markedInGraph(page)).join() === "a0->a1",
+          (await markedInGraph(page)).join(", "));
+
+    // The selection must survive a re-render that is not an edit.
+    await page.select("#engine", "neato");
+    await page.waitForFunction(() => document.querySelector("#stage svg"), { timeout: 10000 });
+    await settle(900);
+    check("selection survives an engine change", (await markedInGraph(page)).includes("a0->a1"),
+          (await markedInGraph(page)).join(", "));
+    await page.select("#engine", "dot");
+    await settle(900);
+
+    // An edit clears both sides, since the graph is about to be replaced.
+    await page.mouse.click((await centreOf(page, "a3")).x, (await centreOf(page, "a3")).y);
+    await settle(300);
+    check("selected again before the edit check", (await markedInGraph(page)).length > 0);
+    await page.click(".cm-content");
+    await page.keyboard.type(" ");
+    await settle(500);
+    check("editing clears the graph mark too", (await markedInGraph(page)).length === 0,
+          (await markedInGraph(page)).join(", "));
+    check("editing clears the editor highlight too", (await highlighted(page)).length === 0);
+
     check("no page errors", errors.length === 0, errors.join(" | "));
 }

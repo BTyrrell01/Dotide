@@ -18,10 +18,18 @@ function knownOption(select, value, fallback) {
 function main() {
     const busy = document.querySelector("#busy");
 
+    const selection = createGraphSelection({
+        viewport: document.querySelector("#graph"),
+        stage: document.querySelector("#stage"),
+        onSelect: (titles) => editor.highlightTitles(titles),
+    });
+
     const renderer = createRenderer({
         stage: document.querySelector("#stage"),
         diagnostics: document.querySelector("#diagnostics"),
         onBusy: (isBusy) => { busy.hidden = !isBusy; },
+        // A re-render replaces the SVG, so the marks have to go back on.
+        onRendered: () => selection.repaint(),
     });
 
     const engineSelect = document.querySelector("#engine");
@@ -39,6 +47,10 @@ function main() {
         theme: resolveTheme(themeSelect.value),
         onChange(text) {
             clearTimeout(debounce);
+            // The editor drops its highlight on any edit; clear the graph to
+            // match, rather than leaving marks on a graph about to be replaced.
+            selection.clear();
+
             debounce = setTimeout(() => {
                 renderer.render(text, engineSelect.value);
                 saveDocument(text);
@@ -61,12 +73,6 @@ function main() {
 
     // The debounce can swallow the last few keystrokes before the tab closes.
     window.addEventListener("beforeunload", () => saveDocument(editor.getSource()));
-
-    const selection = createGraphSelection({
-        viewport: document.querySelector("#graph"),
-        stage: document.querySelector("#stage"),
-        onSelect: (titles) => editor.highlightTitles(titles),
-    });
 
     const panZoom = createPanZoom({
         viewport: document.querySelector("#graph"),

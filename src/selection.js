@@ -11,6 +11,8 @@ const MIN_MARQUEE_PX = 4;
  * transform on the stage.
  */
 export function createGraphSelection({ viewport, stage, onSelect }) {
+    let selected = new Set();
+
     const marquee = document.createElement("div");
     marquee.className = "marquee";
     marquee.hidden = true;
@@ -53,6 +55,26 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
         return [...nodes, ...edges];
     }
 
+    /**
+     * Marks the selected shapes in the SVG.
+     *
+     * Graphviz writes fill and stroke as presentation attributes, which any CSS
+     * rule outranks, so the styling lives in the stylesheet rather than being
+     * written onto the elements here.
+     */
+    function paint() {
+        for (const group of stage.querySelectorAll("g.node, g.edge")) {
+            const title = group.querySelector("title")?.textContent;
+            group.classList.toggle("is-selected", Boolean(title) && selected.has(title));
+        }
+    }
+
+    function select(titles) {
+        selected = new Set(titles);
+        paint();
+        onSelect([...selected]);
+    }
+
     function showMarquee(rect) {
         const bounds = viewport.getBoundingClientRect();
         marquee.style.left = `${rect.left - bounds.left}px`;
@@ -66,7 +88,7 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
         /** A plain click: select what is under it, or clear on empty space. */
         pick(element) {
             const title = titleOf(element);
-            onSelect(title ? [title] : []);
+            select(title ? [title] : []);
         },
 
         marqueeMove(rect) {
@@ -80,11 +102,24 @@ export function createGraphSelection({ viewport, stage, onSelect }) {
                 return;
             }
 
-            onSelect(titlesWithin(rect));
+            select(titlesWithin(rect));
         },
 
         cancelMarquee() {
             marquee.hidden = true;
+        },
+
+        /**
+         * Re-marks the selection after a re-render, which replaces the SVG
+         * wholesale. Switching layout engine redraws the same graph, so the
+         * selection should survive it.
+         */
+        repaint() {
+            paint();
+        },
+
+        clear() {
+            select([]);
         },
     };
 }

@@ -14,7 +14,7 @@ const BUSY_AFTER_MS = 300;
  * Keeps the SVG source string of the last successful render for exports; the
  * displayed element has had its width/height stripped for responsive display.
  */
-export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
+export function createRenderer({ stage, diagnostics, onBusy = () => {}, onRendered = () => {} }) {
     let worker;
     let pending = null;
     let nextId = 0;
@@ -44,6 +44,7 @@ export function createRenderer({ stage, diagnostics, onBusy = () => {} }) {
 
             lastSvgSource = data.result.output;
             stage.replaceChildren(toResponsiveElement(data.result.output));
+            onRendered();
         };
 
         worker.onerror = (event) => {
