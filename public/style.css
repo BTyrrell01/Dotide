@@ -10,6 +10,9 @@
     --warning-bg: #fff6e0;
     /* Controls floating over the graph. */
     --overlay: rgba(255, 255, 255, 0.92);
+    --highlight: #ffe58a;
+    --marquee-border: #4a7fd0;
+    --marquee-fill: rgba(74, 127, 208, 0.14);
 }
 
 /*
@@ -27,6 +30,9 @@
     --warning: #e8c26a;
     --warning-bg: #352d18;
     --overlay: rgba(30, 30, 30, 0.92);
+    --highlight: #6a5a1e;
+    --marquee-border: #7aa7e8;
+    --marquee-fill: rgba(122, 167, 232, 0.18);
 }
 
 html, body {
@@ -120,6 +126,8 @@ html, body {
     cursor: grab;
     /* Lets pointer events drive panning instead of the browser scrolling. */
     touch-action: none;
+    /* Shift-drag would otherwise select the SVG's label text as well. */
+    user-select: none;
 }
 
 .graph-viewport.is-panning { cursor: grabbing; }
@@ -141,6 +149,22 @@ html, body {
     width: auto;
     height: auto;
 }
+
+/* Occurrences of whatever is selected in the graph. */
+.cm-graph-highlight {
+    background-color: var(--highlight);
+    border-radius: 2px;
+}
+
+/* Shift-drag selection rectangle. */
+.marquee {
+    position: absolute;
+    border: 1px solid var(--marquee-border);
+    background-color: var(--marquee-fill);
+    pointer-events: none;
+}
+
+.graph-viewport.is-selecting { cursor: crosshair; }
 
 .zoom-controls {
     position: absolute;

@@ -2,6 +2,7 @@ import { createEditor } from "./editor.js";
 import { createRenderer } from "./renderer.js";
 import { registerExportButtons } from "./export.js";
 import { createPanZoom } from "./panzoom.js";
+import { createGraphSelection } from "./selection.js";
 import { loadDocument, saveDocument, loadEngine, saveEngine, loadTheme, saveTheme } from "./storage.js";
 import { DEFAULT_GRAPH } from "./default-graph.js";
 import { createTheme, resolveTheme, DEFAULT_THEME } from "./theme.js";
@@ -61,10 +62,17 @@ function main() {
     // The debounce can swallow the last few keystrokes before the tab closes.
     window.addEventListener("beforeunload", () => saveDocument(editor.getSource()));
 
+    const selection = createGraphSelection({
+        viewport: document.querySelector("#graph"),
+        stage: document.querySelector("#stage"),
+        onSelect: (titles) => editor.highlightTitles(titles),
+    });
+
     const panZoom = createPanZoom({
         viewport: document.querySelector("#graph"),
         stage: document.querySelector("#stage"),
         controls: document.querySelector("#zoom-controls"),
+        selection,
     });
 
     document.querySelector("#reset").addEventListener("click", () => {
