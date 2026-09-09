@@ -41,7 +41,8 @@ anything else, since it names a directory that gets recursively deleted.
 | `src/renderer.js` | Drives the render worker; owns the graph pane and error reporting |
 | `src/worker.js` | Worker thread running Graphviz (WASM) |
 | `src/panzoom.js` | Pan, zoom, and the view controls |
-| `src/storage.js` | Document persistence via localStorage |
+| `src/storage.js` | Document, engine and theme persistence via localStorage |
+| `src/theme.js` | Light / dark / system theme resolution |
 | `src/completion.js` | Context-aware DOT completion |
 | `src/default-graph.js` | The document new visitors see, and what reset restores |
 | `src/export.js` | SVG / PNG / DOT export buttons |

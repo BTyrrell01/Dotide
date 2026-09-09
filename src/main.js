@@ -2,15 +2,16 @@ import { createEditor } from "./editor.js";
 import { createRenderer } from "./renderer.js";
 import { registerExportButtons } from "./export.js";
 import { createPanZoom } from "./panzoom.js";
-import { loadDocument, saveDocument, loadEngine, saveEngine } from "./storage.js";
+import { loadDocument, saveDocument, loadEngine, saveEngine, loadTheme, saveTheme } from "./storage.js";
 import { DEFAULT_GRAPH } from "./default-graph.js";
+import { createTheme, resolveTheme, DEFAULT_THEME } from "./theme.js";
 
 const DEBOUNCE_MS = 200;
 const DEFAULT_ENGINE = "dot";
 
-/** A stored engine could name one this build no longer offers. */
-function knownEngine(select, engine) {
-    return [...select.options].some((option) => option.value === engine) ? engine : DEFAULT_ENGINE;
+/** A stored value could name an option this build no longer offers. */
+function knownOption(select, value, fallback) {
+    return [...select.options].some((option) => option.value === value) ? value : fallback;
 }
 
 function main() {
@@ -23,7 +24,10 @@ function main() {
     });
 
     const engineSelect = document.querySelector("#engine");
-    engineSelect.value = knownEngine(engineSelect, loadEngine(DEFAULT_ENGINE));
+    engineSelect.value = knownOption(engineSelect, loadEngine(DEFAULT_ENGINE), DEFAULT_ENGINE);
+
+    const themeSelect = document.querySelector("#theme");
+    themeSelect.value = knownOption(themeSelect, loadTheme(DEFAULT_THEME), DEFAULT_THEME);
 
     const doc = loadDocument(DEFAULT_GRAPH);
     let debounce;
@@ -31,6 +35,7 @@ function main() {
     const editor = createEditor({
         parent: document.querySelector("#editor"),
         doc,
+        theme: resolveTheme(themeSelect.value),
         onChange(text) {
             clearTimeout(debounce);
             debounce = setTimeout(() => {
@@ -38,6 +43,14 @@ function main() {
                 saveDocument(text);
             }, DEBOUNCE_MS);
         },
+    });
+
+    const theme = createTheme({ onResolved: (resolved) => editor.setTheme(resolved) });
+    theme.set(themeSelect.value);
+
+    themeSelect.addEventListener("change", () => {
+        saveTheme(themeSelect.value);
+        theme.set(themeSelect.value);
     });
 
     engineSelect.addEventListener("change", () => {

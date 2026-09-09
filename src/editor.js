@@ -1,4 +1,4 @@
-import { EditorState } from '@codemirror/state';
+import { EditorState, Compartment } from '@codemirror/state';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { indentWithTab, history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { foldGutter, indentOnInput, indentUnit, bracketMatching, foldKeymap, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
@@ -14,7 +14,13 @@ import { dotCompletionSource } from "./completion.js";
 
 const dotLanguage = dot();
 
-function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
+// The theme is swapped at runtime by the selector, so it lives in a
+// compartment rather than being baked into the initial state.
+const themeCompartment = new Compartment();
+
+const themeExtension = (resolved) => (resolved === "dark" ? oneDark : []);
+
+function createEditorState(doc, { onChange, theme = "light" } = {}) {
     const extensions = [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -46,6 +52,7 @@ function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
             ...foldKeymap,
             ...completionKeymap,
         ]),
+        themeCompartment.of(themeExtension(theme)),
         dotLanguage,
         // lang-dot ships no completion data of its own.
         dotLanguage.language.data.of({ autocomplete: dotCompletionSource }),
@@ -58,19 +65,22 @@ function createEditorState(doc, { onChange, oneDarkTheme = false } = {}) {
         }));
     }
 
-    if (oneDarkTheme) extensions.push(oneDark);
-
     return EditorState.create({ doc, extensions });
 }
 
-export function createEditor({ parent, doc, onChange, oneDarkTheme }) {
+export function createEditor({ parent, doc, onChange, theme }) {
     const view = new EditorView({
-        state: createEditorState(doc, { onChange, oneDarkTheme }),
+        state: createEditorState(doc, { onChange, theme }),
         parent,
     });
 
     return {
         getSource: () => view.state.doc.toString(),
+
+        /** Swaps the editor theme without rebuilding the document or history. */
+        setTheme(resolved) {
+            view.dispatch({ effects: themeCompartment.reconfigure(themeExtension(resolved)) });
+        },
 
         /**
          * Replaces the whole document. Goes through a normal transaction, so

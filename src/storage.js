@@ -1,5 +1,6 @@
 const DOCUMENT_KEY = "dotide:document";
 const ENGINE_KEY = "dotide:engine";
+const THEME_KEY = "dotide:theme";
 
 /**
  * localStorage throws rather than returning null in some configurations
@@ -28,3 +29,6 @@ export const saveDocument = (text) => write(DOCUMENT_KEY, text);
 
 export const loadEngine = (fallback) => read(ENGINE_KEY, fallback);
 export const saveEngine = (engine) => write(ENGINE_KEY, engine);
+
+export const loadTheme = (fallback) => read(THEME_KEY, fallback);
+export const saveTheme = (theme) => write(THEME_KEY, theme);
