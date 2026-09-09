@@ -2,11 +2,31 @@
     --border: #ccc;
     --surface: #fff;
     --surface-alt: #f0f0f0;
+    --text: #1a1a1a;
+    --muted: #666;
     --error: #b3261e;
     --error-bg: #fdecea;
     --warning: #8a6100;
     --warning-bg: #fff6e0;
-    --muted: #666;
+    /* Controls floating over the graph. */
+    --overlay: rgba(255, 255, 255, 0.92);
+}
+
+/*
+ * Set by the theme selector. "System" resolves to one of these rather than
+ * relying on a media query, so an explicit choice always wins.
+ */
+:root[data-theme="dark"] {
+    --border: #3d3d3d;
+    --surface: #1e1e1e;
+    --surface-alt: #262626;
+    --text: #e4e4e4;
+    --muted: #9b9b9b;
+    --error: #ff8a80;
+    --error-bg: #3a1e1e;
+    --warning: #e8c26a;
+    --warning-bg: #352d18;
+    --overlay: rgba(30, 30, 30, 0.92);
 }
 
 html, body {
@@ -14,6 +34,8 @@ html, body {
     padding: 0;
     height: 100%;
     font: 14px system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text);
+    background-color: var(--surface);
 }
 
 [hidden] { display: none !important; }
@@ -134,10 +156,10 @@ html, body {
     height: 30px;
     padding: 0;
     font: 16px/1 system-ui, sans-serif;
-    color: #333;
+    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.92);
+    background-color: var(--overlay);
     cursor: pointer;
 }
 
@@ -150,7 +172,7 @@ html, body {
     padding: 4px 10px;
     border: 1px solid var(--border);
     border-radius: 999px;
-    background-color: rgba(255, 255, 255, 0.92);
+    background-color: var(--overlay);
     color: var(--muted);
     font-size: 12px;
 }
@@ -215,6 +237,7 @@ html, body {
 .app-header button,
 .app-footer button {
     font: inherit;
+    color: var(--text);
     padding: 5px 12px;
     border: 1px solid var(--border);
     border-radius: 4px;
